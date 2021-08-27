@@ -29,7 +29,7 @@ resource "azuread_group_member" "$STUDENT-group" {
 
 output "$STUDENT-user" {
   description = "display username"
-  value       = azuread_user.$STUDENT-user.mail
+  value       = azuread_user.$STUDENT-user.user_principal_name
 }
 
 output "$STUDENT-pass" {
@@ -60,13 +60,26 @@ local() {
 
 deploy() {
     build
-    test -d .azure || az login
+    if [ "$(az account show --query name -o tsv)" != "acend-lab-sub" ]; then
+        az login
+    fi
     terraform init
     terraform plan
     terraform apply
+    for STUDENT in $(cat students.txt); do
+        STUDENT=${STUDENT%@*}
+	echo "$(terraform output $STUDENT-user) $(terraform output $STUDENT-pass)"
+    done
 }
 
 destroy() {
+    # cleanup left groups
+    RGS=$(az group list --query [].name -o table | grep "rg-" | tr "\n" " ")
+    for RG in $RGS; do
+	echo deleting rg $RG
+        az group delete --resource-group $RG -y
+    done
+
     terraform destroy
     for STUDENT in $(cat students.txt); do
         STUDENT=${STUDENT%@*}

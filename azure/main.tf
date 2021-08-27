@@ -25,22 +25,70 @@ resource "azuread_group" "students" {
 
 resource "azurerm_role_assignment" "sub-contributor" {
   scope                = data.azurerm_subscription.current.id
-  role_definition_name = "Contributor"
+  role_definition_name = "Owner"
   principal_id         = azuread_group.students.id
 }
 
 resource "azurerm_resource_group" "dnszone" {
-  name     = "rg-labz-dnszone"
+  name     = "setup-labz-dnszone"
   location = "West Europe"
 }
 
 resource "azurerm_dns_zone" "dnszone" {
-  name                = "azure.labz.ch"
+  name                = "labz.ch"
   resource_group_name = azurerm_resource_group.dnszone.name
+}
+
+resource "azurerm_resource_group" "watcher" {
+  name     = "setup-network-watcher"
+  location = "West Europe"
+}
+
+resource "azurerm_network_watcher" "default" {
+  name                = "nw-standard"
+  location            = "West Europe"
+  resource_group_name = azurerm_resource_group.watcher.name
+}
+
+output "nameserver" {
+  description = "for external config"
+  value       = azurerm_dns_zone.dnszone.name_servers
 }
 
 resource "azurerm_role_assignment" "dns-contributor" {
   scope                = azurerm_dns_zone.dnszone.id
   role_definition_name = "DNS Zone Contributor"
   principal_id         = azuread_group.students.id
+}
+
+resource "azurerm_consumption_budget_subscription" "costlimit" {
+  name            = "const-limit-budget"
+  subscription_id = data.azurerm_subscription.current.subscription_id
+
+  amount     = 500
+  time_grain = "Monthly"
+
+  time_period {
+    start_date = "2021-08-01T00:00:00Z"
+  }
+
+  notification {
+    enabled   = true
+    threshold = 90.0
+    operator  = "EqualTo"
+
+    contact_emails = [
+      "stream1@acend.ch",
+    ]
+  }
+
+  notification {
+    enabled   = false
+    threshold = 100.0
+    operator  = "GreaterThan"
+
+    contact_emails = [
+      "stream1@acend.ch",
+    ]
+  }
 }
