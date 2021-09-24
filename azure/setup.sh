@@ -23,19 +23,14 @@ resource "azuread_user" "$STUDENT-user" {
 }
 
 resource "azuread_group_member" "$STUDENT-group" {
-  group_object_id  = azuread_group.students.id
+  group_object_id  = data.azuread_group.students.id
   member_object_id = azuread_user.$STUDENT-user.id
 }
 
-output "$STUDENT-user" {
+output "$STUDENT-login" {
   description = "display username"
-  value       = azuread_user.$STUDENT-user.user_principal_name
-}
-
-output "$STUDENT-pass" {
-  description = "display password"
+  value       = "${azuread_user.$STUDENT-user.user_principal_name} => ${random_password.$STUDENT-pass.result}"
   sensitive   = true
-  value       = random_password.$STUDENT-pass.result 
 }
 EOF
 
@@ -73,18 +68,14 @@ deploy() {
 }
 
 destroy() {
+    terraform destroy
     # cleanup left groups
     RGS=$(az group list --query [].name -o table | grep "rg-" | tr "\n" " ")
     for RG in $RGS; do
 	echo deleting rg $RG
         az group delete --resource-group $RG -y
     done
-
     terraform destroy
-    for STUDENT in $(cat students.txt); do
-        STUDENT=${STUDENT%@*}
-	rm $STUDENT.tf
-    done
 }
 
 "$@"

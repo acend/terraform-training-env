@@ -17,16 +17,25 @@ provider "azuread" {}
 
 data "azurerm_subscription" "current" {}
 
-resource "azuread_group" "students" {
-  display_name            = "students"
-  description             = "students with cont. access to subscription"
-  prevent_duplicate_names = true
+data "azuread_client_config" "current" {}
+
+# resource "azuread_group" "students" {
+#   display_name            = "students"
+#   description             = "students with cont. access to subscription"
+#   owners                  = [data.azuread_client_config.current.object_id]
+#   security_enabled        = true
+#   prevent_duplicate_names = true
+# }
+
+data "azuread_group" "students" {
+  display_name     = "students"
+  security_enabled = true
 }
 
 resource "azurerm_role_assignment" "sub-contributor" {
   scope                = data.azurerm_subscription.current.id
   role_definition_name = "Owner"
-  principal_id         = azuread_group.students.id
+  principal_id         = data.azuread_group.students.id
 }
 
 resource "azurerm_resource_group" "dnszone" {
@@ -58,7 +67,7 @@ output "nameserver" {
 resource "azurerm_role_assignment" "dns-contributor" {
   scope                = azurerm_dns_zone.dnszone.id
   role_definition_name = "DNS Zone Contributor"
-  principal_id         = azuread_group.students.id
+  principal_id         = data.azuread_group.students.id
 }
 
 resource "azurerm_consumption_budget_subscription" "costlimit" {
@@ -69,7 +78,7 @@ resource "azurerm_consumption_budget_subscription" "costlimit" {
   time_grain = "Monthly"
 
   time_period {
-    start_date = "2021-08-01T00:00:00Z"
+    start_date = "2021-10-01T00:00:00Z"
   }
 
   notification {
