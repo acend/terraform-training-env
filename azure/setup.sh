@@ -1,7 +1,11 @@
 #!/bin/bash
 
 if ! [[ "$1" =~ ^(local|build|deploy|destroy|cleanup)$ ]]; then
-    printf "=> No valid target given, possible values: local|build|deploy|destroy\n\n"
+    printf "\n=> No valid target given, possible values: local|build|deploy|destroy\n\n"
+    printf "    local:   run theia shell for tests\n"
+    printf "    build:   create terraform files with users\n"
+    printf "    deploy:  build and run tf init|plan|apply and output logins\n"
+    printf "    destroy: tf destroy and rg deleting with azure cli\n\n"
     exit 1
 fi
 
@@ -34,7 +38,7 @@ output "$STUDENT-login" {
 }
 EOF
 
-        cat $STUDENT.tf.tmp | envsubst > $STUDENT.tf
+        cat $STUDENT.tf.tmp | envsubst > student-$STUDENT.tf
         rm $STUDENT.tf.tmp
 
     done
@@ -45,6 +49,7 @@ cleanup() {
   test -d .terraform/ && rm -rf .terraform/
   test -f .terraform.lock.hcl && rm .terraform.lock.hcl
   test -f terraform.tfstate && rm terraform.tfstate*
+  rm -rf student-*.tf
 }
 
 local() {
@@ -53,21 +58,27 @@ local() {
     docker run -it --rm -w $(pwd) -v $(pwd):$(pwd) acend/theia bash
 }
 
+setup() {
+    if [ "$(az account show --query name -o tsv)" != "acend-lab-sub" ]; then
+        az login --tenant 79b79954-f1b6-4d8b-868d-7c22edee3e00
+        az account set --subscription acend-lab-sub
+    fi
+}
+
 deploy() {
     build
-    if [ "$(az account show --query name -o tsv)" != "acend-lab-sub" ]; then
-        az login
-    fi
+    setup
     terraform init
     terraform plan
     terraform apply
     for STUDENT in $(cat students.txt); do
         STUDENT=${STUDENT%@*}
-	echo "$(terraform output $STUDENT-user) $(terraform output $STUDENT-pass)"
+        echo "$(terraform output $STUDENT-user) $(terraform output $STUDENT-login)"
     done
 }
 
 destroy() {
+    setup
     terraform destroy
     # cleanup left groups
     RGS=$(az group list --query [].name -o table | grep "rg-" | tr "\n" " ")

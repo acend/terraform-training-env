@@ -1,16 +1,24 @@
 terraform {
-  required_version = ">= 0.15"
+  required_version = ">= 1.0"
 
   required_providers {
-    azurerm = ">= 2.59.0"
-    random  = ">= 3.1.0"
-    azuread = ">= 1.4.0"
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.64.0"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.39.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5.1"
+    }
   }
 }
 
 provider "azurerm" {
   features {}
-  subscription_id = "c1b34118-6a8f-4348-88c2-b0b1f7350f04"
 }
 
 provider "azuread" {}
@@ -72,13 +80,13 @@ resource "azurerm_role_assignment" "dns-contributor" {
 
 resource "azurerm_consumption_budget_subscription" "costlimit" {
   name            = "const-limit-budget"
-  subscription_id = data.azurerm_subscription.current.subscription_id
+  subscription_id = data.azurerm_subscription.current.id
 
   amount     = 500
   time_grain = "Monthly"
 
   time_period {
-    start_date = "2021-10-01T00:00:00Z"
+    start_date = "2023-08-01T00:00:00Z"
   }
 
   notification {
