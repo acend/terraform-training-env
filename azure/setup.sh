@@ -1,10 +1,11 @@
 #!/bin/bash
 
-if ! [[ "$1" =~ ^(local|build|deploy|destroy|cleanup)$ ]]; then
+if ! [[ "$1" =~ ^(local|build|deploy|logins|destroy|cleanup)$ ]]; then
     printf "\n=> No valid target given, possible values: local|build|deploy|destroy\n\n"
     printf "    local:   run theia shell for tests\n"
     printf "    build:   create terraform files with users\n"
     printf "    deploy:  build and run tf init|plan|apply and output logins\n"
+    printf "    logins:  show created logins for users\n"
     printf "    destroy: tf destroy and rg deleting with azure cli\n\n"
     exit 1
 fi
@@ -73,7 +74,14 @@ deploy() {
     terraform apply
     for STUDENT in $(cat students.txt); do
         STUDENT=${STUDENT%@*}
-        echo "$(terraform output $STUDENT-user) $(terraform output $STUDENT-login)"
+        echo "$(terraform output $STUDENT-login)"
+    done
+}
+
+logins() {
+    for STUDENT in $(cat students.txt); do
+        STUDENT=${STUDENT%@*}
+        echo "$(terraform output $STUDENT-login)"
     done
 }
 
