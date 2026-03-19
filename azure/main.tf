@@ -1,18 +1,18 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.3"
 
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.64.0"
+      version = "~> 4.0"
     }
     azuread = {
       source  = "hashicorp/azuread"
-      version = "~> 2.39.0"
+      version = "~> 3.0"
     }
     random = {
       source  = "hashicorp/random"
-      version = "~> 3.5.1"
+      version = "~> 3.8"
     }
   }
 }
@@ -86,7 +86,7 @@ resource "azurerm_consumption_budget_subscription" "costlimit" {
   time_grain = "Monthly"
 
   time_period {
-    start_date = "2023-08-01T00:00:00Z"
+    start_date = "2026-03-01T00:00:00Z"
   }
 
   notification {

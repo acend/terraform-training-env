@@ -36,7 +36,7 @@ handle_options() {
         usage
         exit 0
         ;;
-      -s | ---sync-remote-state)
+      -s | --sync-remote-state)
         sync_remote_tf_state=true
         ;;
       *)
@@ -89,38 +89,43 @@ EOF
 
 
 build() {
-    for STUDENT in $(cat students.txt); do
-        export STUDENT
+    STUDENTS_LIST=$(grep -v '^[[:space:]]*$' students.txt | awk '{printf "\"%s\", ", $0}' | sed 's/, $//')
 
-        cat << 'EOF' > $STUDENT.tf.tmp
-resource "random_password" "$STUDENT-pass" {
+    cat > students.tf << EOF
+locals {
+  students = toset([${STUDENTS_LIST}])
+}
+
+resource "random_password" "student" {
+  for_each         = local.students
   length           = 12
   special          = true
   override_special = "_%@"
 }
 
-resource "azuread_user" "$STUDENT-user" {
-  user_principal_name = "$STUDENT@acend.onmicrosoft.com"
-  display_name        = "$STUDENT"
-  password            = random_password.$STUDENT-pass.result
+resource "azuread_user" "student" {
+  for_each = local.students
+
+  user_principal_name = "\${each.key}@acend.onmicrosoft.com"
+  display_name        = each.key
+  password            = random_password.student[each.key].result
 }
 
-resource "azuread_group_member" "$STUDENT-group" {
+resource "azuread_group_member" "student" {
+  for_each = local.students
+
   group_object_id  = data.azuread_group.students.id
-  member_object_id = azuread_user.$STUDENT-user.id
+  member_object_id = azuread_user.student[each.key].id
 }
 
-output "$STUDENT-login" {
-  description = "display username"
-  value       = "${azuread_user.$STUDENT-user.user_principal_name} => ${random_password.$STUDENT-pass.result}"
+output "student_logins" {
+  description = "Student login credentials"
   sensitive   = true
+  value = {
+    for s in local.students : s => "\${azuread_user.student[s].user_principal_name} => \${random_password.student[s].result}"
+  }
 }
 EOF
-
-        cat $STUDENT.tf.tmp | envsubst > student-$STUDENT.tf
-        rm $STUDENT.tf.tmp
-
-    done
 }
 
 cleanup() {
@@ -132,7 +137,7 @@ cleanup() {
   rm -rf students.tf
 }
 
-local() {
+run_local() {
     trap cleanup EXIT
     trap cleanup SIGTERM
     docker run -it --rm -w $(pwd) -v $(pwd):$(pwd) acend/theia bash
@@ -143,13 +148,12 @@ setup() {
         az login --tenant 79b79954-f1b6-4d8b-868d-7c22edee3e00
         az account set --subscription acend-lab-sub
     fi
+    # azurerm 4.x requires subscription_id to be set explicitly
+    export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 }
 
 logins() {
-    for STUDENT in $(cat students.txt); do
-        STUDENT=${STUDENT%@*}
-        echo "$(terraform output $STUDENT-login)"
-    done
+    terraform output -json student_logins | python3 -c "import json, sys; [print(v) for v in json.load(sys.stdin).values()]"
 }
 
 deploy() {
@@ -189,18 +193,27 @@ deploy() {
 
 destroy() {
     setup
+    # First pass: destroy Terraform-managed resources
     terraform destroy
-    # cleanup left groups
+    # Remove student-created resource groups not tracked by Terraform
     RGS=$(az group list --query [].name -o table | grep "rg-" | tr "\n" " ")
     for RG in $RGS; do
-	echo deleting rg $RG
+        echo "deleting rg $RG"
         az group delete --resource-group $RG -y
     done
+    # Second pass: destroy any resources that depended on the deleted RGs
     terraform destroy
 }
 
 handle_options "$@"
 
-"$@"
+case "$1" in
+  local)   run_local ;;
+  build)   build ;;
+  deploy)  deploy ;;
+  logins)  logins ;;
+  destroy) destroy ;;
+  cleanup) cleanup ;;
+esac
 
 exit 0

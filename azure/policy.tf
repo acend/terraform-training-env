@@ -14,6 +14,6 @@ resource "azurerm_subscription_policy_assignment" "vm-size-policy" {
   policy_definition_id = "/providers/Microsoft.Authorization/policyDefinitions/cccc23c7-8427-4f53-ad12-b6a63eb452b3"
   subscription_id      = data.azurerm_subscription.current.id
   parameters           = <<PARAMS
-{ "listOfAllowedSKUs": { "value": ["basic_a1", "basic_a2"] } }
+{ "listOfAllowedSKUs": { "value": ["Standard_B1s", "Standard_B2s"] } }
 PARAMS
 }
