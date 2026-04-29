@@ -114,8 +114,8 @@ resource "azuread_user" "student" {
 resource "azuread_group_member" "student" {
   for_each = local.students
 
-  group_object_id  = data.azuread_group.students.id
-  member_object_id = azuread_user.student[each.key].id
+  group_object_id  = data.azuread_group.students.object_id
+  member_object_id = azuread_user.student[each.key].object_id
 }
 
 output "student_logins" {

@@ -43,7 +43,7 @@ data "azuread_group" "students" {
 resource "azurerm_role_assignment" "sub-contributor" {
   scope                = data.azurerm_subscription.current.id
   role_definition_name = "Owner"
-  principal_id         = data.azuread_group.students.id
+  principal_id         = data.azuread_group.students.object_id
 }
 
 resource "azurerm_resource_group" "dnszone" {
@@ -75,7 +75,7 @@ output "nameserver" {
 resource "azurerm_role_assignment" "dns-contributor" {
   scope                = azurerm_dns_zone.dnszone.id
   role_definition_name = "DNS Zone Contributor"
-  principal_id         = data.azuread_group.students.id
+  principal_id         = data.azuread_group.students.object_id
 }
 
 resource "azurerm_consumption_budget_subscription" "costlimit" {
@@ -86,7 +86,7 @@ resource "azurerm_consumption_budget_subscription" "costlimit" {
   time_grain = "Monthly"
 
   time_period {
-    start_date = "2026-03-01T00:00:00Z"
+    start_date = "2026-04-01T00:00:00Z"
   }
 
   notification {
